@@ -1,0 +1,176 @@
+#1 View syntetic data tables imported to OpenEMR
+
+USE openemr;
+
+-- view patients
+SELECT * FROM patient_data;
+
+-- view encounters
+SELECT * FROM form_encounter;
+
+-- view vitals
+SELECT * FROM form_vitals;
+
+-- view allergies/diagnoses
+SELECT * FROM lists;
+
+#2 Run queries to join patient_data with vitals table, patient _data with encounter table, and patient _data with lists table 
+
+-- data to vitals
+SELECT * FROM patient_data 
+INNER JOIN form_vitals 
+ON patient_data.pid = form_vitals.pid;
+
+-- data to encounters
+SELECT * FROM patient_data 
+INNER JOIN form_encounter
+ON patient_data.pid = form_encounter.pid;
+
+-- data to lists
+SELECT * FROM patient_data 
+INNER JOIN lists
+ON patient_data.pid = lists.pid;
+
+#3 Run a query to find the most common medical problems and allergies.
+
+-- Allergy - Top 3- No known allergies, seasonal, dairy
+SELECT lists.type, title, Count(*) 
+FROM lists
+WHERE lists.type = 'allergy'
+GROUP BY title
+ORDER BY Count(*) DESC;
+
+-- Medical problem - Top 3 - Allergic rhinitis due to pollen, Low back pain, Cough 
+SELECT lists.type, title, Count(*) 
+FROM lists
+WHERE lists.type REGEXP 'medical_problem'
+GROUP BY title
+ORDER BY Count(*) DESC;
+
+#4 Run a query to find the top reason for encounter visits.
+-- Top reason = follow-up medication effectiveness
+SELECT reason, Count(*)
+FROM form_encounter
+GROUP BY reason
+ORDER BY Count(*) desc;
+
+#5. Count the number of patients from each county in your data table.
+-- Top 3  Travis- 77, Bexar- 70, Hays- 36 
+SELECT county, count(*)
+FROM patient_data 
+GROUP BY county
+ORDER BY count(*) DESC;
+
+#6. Add a new column called Age to your patient_data table. Place the column after DOB. 
+ALTER TABLE patient_data
+ADD age INT  
+AFTER DOB;
+
+#7. Calculate age with UPDATE Patient_data SET age = year(curdate())-year(dob);
+UPDATE patient_data SET age = year(curdate())-year(dob);
+
+-- check that age and dob match up
+SELECT age, dob FROM patient_data;
+
+#8. Find the average age, minimum age and maximum age among your patients.
+-- avg- 58.7, min-18, max-102
+SELECT AVG(age) AS avg_age, min(age) AS min_age, max(age) AS max_age
+FROM patient_data;
+
+#9. Create a cost field in your patient_data table and Create a range of random values to populate visit costs for all patients.
+
+-- create cost column
+ALTER TABLE patient_data
+ADD cost DECIMAL (6,2) DEFAULT 0.00;
+
+-- set random calues in cost column
+UPDATE patient_data SET cost = FLOOR( ( RAND( ) * (200 - 30 + 1 ) ) + 30 ); 
+
+-- view and check cost column
+SELECT cost FROM patient_data;
+
+#10. Create a Case Statement to categorize your patients’ ages as: Child, Youth, Adult, and Elder. a. Return the PID, patient First name, patient Last Name, Age, and Age Category.
+SELECT pid, fname, lname, age, 
+CASE
+	WHEN age < 13 THEN 'Child'
+	WHEN age < 18 THEN 'Youth'
+	WHEN age < 65 THEN 'Adult'
+	WHEN age >=65 THEN 'Elder'
+	ELSE 'unknown'
+END AS age_category
+FROM patient_data;
+
+#11. Create “frequency tables” for patients race, city/state, and marital status. 
+-- Race 
+-- Top 3  White- 72, Black- 53, Asian- 35
+SELECT race, count(*)
+FROM patient_data
+GROUP BY race
+ORDER BY count(*) DESC;
+
+-- Etnicity
+-- Hispanic or Latino- 67, Not Hispanic or Latino- 142
+SELECT ethnicity, count(*)
+FROM patient_data
+GROUP BY ethnicity
+ORDER BY count(*) DESC;
+
+-- City 
+-- Top 3  Austin- 79, San Anonio- 53, San Marcos- 7
+SELECT city, count(*)
+FROM patient_data
+GROUP BY city
+ORDER BY count(*) DESC;
+
+-- State 
+-- All 209 from Texas
+SELECT state, count(*)
+FROM patient_data
+GROUP BY state
+ORDER BY count(*) DESC;
+
+-- Marital Status 
+-- Top 3  Married- 73, Single- 68, Divorced- 50
+SELECT patient_data.status, count(*)
+FROM patient_data
+GROUP BY patient_data.status
+ORDER BY count(*) DESC;
+
+#12. Create an inner join for your patients table and vitals table.a. Return the patient name, age, height, weight, BMI, heart rate (pulse) and blood pressure (bps & bpd).
+SELECT p.fname, p.lname, p.age, v.height, v.weight, v.bmi, v.pulse, v.bps, v.bpd
+FROM patient_data AS p
+INNER JOIN form_vitals AS v
+ON p.pid = v.pid;
+
+#13. Run a query to identify all patients (PID, first name, last name, reason) who had a “follow-up” related encounter/visit. Use DISTINCT to eliminate any duplicate patients. Order by PID number.
+SELECT DISTINCT p.pid, p.fname, p.lname, e.reason
+FROM patient_data AS p
+INNER JOIN form_encounter AS e
+ON p.pid = e.pid
+WHERE e.reason REGEXP 'follow-up' 
+ORDER BY p.pid; 
+
+
+#14. Create a stored procedure to count all patients with a specific diagnosis of your choice from your lists table.
+-- create
+delimiter $$
+CREATE PROCEDURE dizzy_giddy()
+BEGIN
+SELECT title, diagnosis, count(pid)
+FROM lists
+WHERE title REGEXP 'dizziness and giddiness';
+END $$
+
+
+-- Call the stored procudure
+delimiter ;
+CALL dizzy_giddy();
+
+#Export Tables to csv files, then combine in one Excel file to submit
+SELECT * FROM patient_data;
+
+SELECT * FROM form_encounter;
+
+SELECT * FROM form_vitals;
+
+SELECT * FROM lists;
