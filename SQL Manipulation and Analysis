@@ -1,4 +1,4 @@
-#1 View syntetic data tables imported to OpenEMR
+#1 View syntetic data tables imported via Table Data Import Wizard to OpenEMR
 
 USE openemr;
 
